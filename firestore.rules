@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: campaigns
+    // Fields: id, name, imageUrl, domainId, userId, watermarkUrl, watermarkOpacity, watermarkPosition, watermarkSize
+    //
+    // Collection: campaigns/{campaignId}/hotspots
+    // Fields: id, campaignId, type, x, y, width, height, icon, bgColor, iconColor, title, description, price, ctaText, actionType, actionValue, triggerType, soundEnabled, soundFile
+    //
+    // Collection: leads
+    // Fields: id, campaignId, name, email, timestamp, ipAddress
+    //
+    // Collection: analytics_events
+    // Fields: id, campaignId, hotspotId, eventType, timestamp, device, browser, referrer
+    //
+    // Collection: domains
+    // Fields: id, userId, name, verified
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "frankemesinwa@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidCampaign(data) {
+      return data.keys().hasAll(['id', 'name', 'imageUrl', 'userId']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.imageUrl is string && data.imageUrl.size() > 0 &&
+             data.userId is string;
+    }
+
+    function isValidHotspot(data) {
+      return data.keys().hasAll(['id', 'campaignId', 'type', 'x', 'y']) &&
+             data.type in ['standard', 'text', 'image', 'image_description', 'description_only', 'video', 'video_cta', 'signup_form', 'email_signup_image'] &&
+             data.x is number && data.y is number;
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['id', 'campaignId', 'email', 'timestamp']) &&
+             isValidEmail(data.email) &&
+             data.campaignId is string;
+    }
+
+    function isValidAnalytics(data) {
+      return data.keys().hasAll(['id', 'campaignId', 'eventType', 'timestamp']) &&
+             data.eventType in ['view', 'click', 'cta', 'lead'];
+    }
+
+    function isValidDomain(data) {
+      return data.keys().hasAll(['id', 'userId', 'name']) &&
+             data.name is string && data.name.size() > 0;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /campaigns/{campaignId} {
+      allow read: if true; // Publicly readable for embedding
+      allow create: if isAuthenticated() && isValidCampaign(request.resource.data) && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && isValidCampaign(request.resource.data) && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      match /hotspots/{hotspotId} {
+        allow read: if true;
+        allow create, update, delete: if isAuthenticated() && (get(/databases/$(database)/documents/campaigns/$(campaignId)).data.userId == request.auth.uid || isAdmin());
+      }
+    }
+
+    match /leads/{leadId} {
+      allow read: if isAuthenticated() && (get(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)).data.userId == request.auth.uid || isAdmin());
+      allow create: if isValidLead(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /analytics_events/{eventId} {
+      allow read: if isAuthenticated() && (get(/databases/$(database)/documents/campaigns/$(resource.data.campaignId)).data.userId == request.auth.uid || isAdmin());
+      allow create: if isValidAnalytics(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /domains/{domainId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidDomain(request.resource.data) && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && isValidDomain(request.resource.data) && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+  }
+}

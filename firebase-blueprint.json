@@ -1,0 +1,112 @@
+{
+  "entities": {
+    "Campaign": {
+      "title": "Campaign",
+      "description": "An interactive image campaign.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "domainId": { "type": "string" },
+        "userId": { "type": "string" },
+        "watermarkUrl": { "type": "string" },
+        "watermarkOpacity": { "type": "number" },
+        "watermarkPosition": { "type": "string" },
+        "watermarkSize": { "type": "number" }
+      },
+      "required": ["id", "name", "imageUrl", "userId"]
+    },
+    "Hotspot": {
+      "title": "Hotspot",
+      "description": "An interactive point on an image.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "campaignId": { "type": "string" },
+        "type": { "type": "string", "enum": ["standard", "text", "image", "image_description", "description_only", "video", "video_cta", "signup_form", "email_signup_image"] },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "icon": { "type": "string" },
+        "bgColor": { "type": "string" },
+        "iconColor": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "string" },
+        "ctaText": { "type": "string" },
+        "actionType": { "type": "string", "enum": ["url", "email", "phone", "video", "form"] },
+        "actionValue": { "type": "string" },
+        "triggerType": { "type": "string", "enum": ["click", "hover"] },
+        "soundEnabled": { "type": "boolean" },
+        "soundFile": { "type": "string" }
+      },
+      "required": ["id", "campaignId", "type", "x", "y"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "A lead captured via a hotspot form.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "campaignId": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "ipAddress": { "type": "string" }
+      },
+      "required": ["id", "campaignId", "email", "timestamp"]
+    },
+    "AnalyticsEvent": {
+      "title": "AnalyticsEvent",
+      "description": "A tracked interaction event.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "campaignId": { "type": "string" },
+        "hotspotId": { "type": "string" },
+        "eventType": { "type": "string", "enum": ["view", "click", "cta", "lead"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "device": { "type": "string" },
+        "browser": { "type": "string" },
+        "referrer": { "type": "string" }
+      },
+      "required": ["id", "campaignId", "eventType", "timestamp"]
+    },
+    "Domain": {
+      "title": "Domain",
+      "description": "A registered domain for embedding.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "verified": { "type": "boolean" }
+      },
+      "required": ["id", "userId", "name"]
+    }
+  },
+  "firestore": {
+    "/campaigns/{campaignId}": {
+      "schema": "Campaign",
+      "description": "Campaign documents."
+    },
+    "/campaigns/{campaignId}/hotspots/{hotspotId}": {
+      "schema": "Hotspot",
+      "description": "Hotspots within a campaign."
+    },
+    "/leads/{leadId}": {
+      "schema": "Lead",
+      "description": "Leads captured."
+    },
+    "/analytics_events/{eventId}": {
+      "schema": "AnalyticsEvent",
+      "description": "Analytics events."
+    },
+    "/domains/{domainId}": {
+      "schema": "Domain",
+      "description": "Registered domains."
+    }
+  }
+}
